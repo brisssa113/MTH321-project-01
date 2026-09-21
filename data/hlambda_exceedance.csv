@@ -1,0 +1,9 @@
+h,t_exceed_EE,t_exceed_RK4,observed_status_EE,t_diverge_EE
+0.0004,nan,nan,admissible,nan
+0.0005,nan,nan,admissible,nan
+0.00055,nan,nan,admissible,nan
+0.00059,39.85183795948987,nan,admissible,nan
+0.000595,38.40972743185797,nan,admissible,nan
+0.0006,37.02688172043011,nan,negative,nan
+0.0007,18.180670167541887,nan,diverged,27.06409999997702
+0.0008,8.589647411852964,nan,diverged,17.732800000002026

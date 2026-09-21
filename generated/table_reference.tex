@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Validation checks for the reference solution (maximum Euclidean discrepancy).}
+\label{tab:reference}
+\small
+\begin{tabular}{@{}llr@{}}
+\toprule
+Check & Compared at & Discrepancy\\
+\midrule
+Radau, tolerances tightened by $100$ & 201 output times & $6.30\times10^{-12}$\\
+Radau vs.\ BDF (same tolerances) & 201 output times & $1.94\times10^{-11}$\\
+Radau, tolerances tightened by $100$ & $60{,}000$ fine-grid points (dense output) & $1.03\times10^{-11}$\\
+Radau vs.\ BDF & $60{,}000$ fine-grid points (dense output) & $1.95\times10^{-11}$\\
+Invariant defect $\max|y_1+y_2+y_3-1|$ & 201 output times & $1.33\times10^{-15}$\\
+\bottomrule
+\end{tabular}
+\end{table}

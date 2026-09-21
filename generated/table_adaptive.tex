@@ -1,0 +1,20 @@
+\begin{table}[H]
+\centering
+\caption{Adaptive Explicit Euler (step doubling, $h_0=10^{-4}$, $h_{\max}=10^{-2}$). The tolerance bounds the \emph{local} error estimate per step; $E_\infty$ is the accumulated \emph{global} error.}
+\label{tab:adaptive}
+\small
+\begin{tabular}{rlrrrrr}
+\toprule
+Tol. & Status & Accepted & Rejected & $E_\infty$ & $E_\infty/\mathrm{tol}$ & Mean accepted $h$\\
+\midrule
+$1\times10^{-4}$ & diverged ($t\approx0.06$) & 416 & 40 & -- & -- & --\\
+$1\times10^{-5}$ & completed & 22248 & 9794 & $1.02\times10^{-3}$ & $102$ & $1.80\times10^{-3}$\\
+$3\times10^{-6}$ & completed & 25279 & 12544 & $1.32\times10^{-4}$ & $44$ & $1.58\times10^{-3}$\\
+$1\times10^{-6}$ & completed & 25398 & 12686 & $1.97\times10^{-5}$ & $20$ & $1.57\times10^{-3}$\\
+$3\times10^{-7}$ & completed & 25407 & 12692 & $1.20\times10^{-5}$ & $40$ & $1.57\times10^{-3}$\\
+$1\times10^{-7}$ & completed & 23202 & 9194 & $1.35\times10^{-5}$ & $135$ & $1.72\times10^{-3}$\\
+$3\times10^{-8}$ & completed & 25221 & 12145 & $1.24\times10^{-5}$ & $413$ & $1.59\times10^{-3}$\\
+$1\times10^{-8}$ & completed & 23794 & 8854 & $9.67\times10^{-6}$ & $967$ & $1.68\times10^{-3}$\\
+\bottomrule
+\end{tabular}
+\end{table}

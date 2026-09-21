@@ -1,0 +1,10 @@
+check,value
+Radau_100x_refinement_max_L2,6.2972483358222195e-12
+Radau_vs_BDF_max_L2,1.9405597014181813e-11
+Radau_100x_refinement_dense_max_L2,1.02949785025446e-11
+Radau_vs_BDF_dense_max_L2,1.9457763331442497e-11
+dense_check_grid_points,60000
+reference_max_mass_defect,1.3322676295501878e-15
+reference_y1_T40,0.7158270687199074
+reference_y2_T40,9.185534764578335e-06
+reference_y3_T40,0.2841637457453279

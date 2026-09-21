@@ -1,0 +1,31 @@
+\begin{table}[H]
+\centering
+\caption{Four-method convergence study. All 16 runs reached $T=40$ with finite values (stable in this sense); ``Non-neg.'' states whether $\min_{n,j}y_{j,n}\ge-10^{-12}$; $p_{\mathrm{fit}}$ is the least-squares slope over the three finest step sizes.}
+\label{tab:convergence}
+\small
+\begin{tabular}{lrrrcr}
+\toprule
+Method & $h$ & $E_\infty$ & Pairwise order & Non-neg. & $p_{\mathrm{fit}}$\\
+\midrule
+Explicit Euler & $5.00\times10^{-4}$ & $6.831\times10^{-6}$ & -- & yes & \\
+ & $2.50\times10^{-4}$ & $2.893\times10^{-6}$ & $1.240$ & yes & \\
+ & $1.25\times10^{-4}$ & $1.365\times10^{-6}$ & $1.084$ & yes & \\
+ & $6.25\times10^{-5}$ & $6.655\times10^{-7}$ & $1.036$ & yes & $1.060$\\
+\addlinespace[0.25em]
+RK4 & $8.00\times10^{-4}$ & $1.172\times10^{-6}$ & -- & yes & \\
+ & $4.00\times10^{-4}$ & $4.377\times10^{-8}$ & $4.743$ & yes & \\
+ & $2.00\times10^{-4}$ & $2.179\times10^{-9}$ & $4.329$ & yes & \\
+ & $1.00\times10^{-4}$ & $1.215\times10^{-10}$ & $4.165$ & yes & $4.247$\\
+\addlinespace[0.25em]
+Implicit Euler & $1.00\times10^{-2}$ & $1.039\times10^{-4}$ & -- & yes & \\
+ & $5.00\times10^{-3}$ & $5.200\times10^{-5}$ & $0.999$ & yes & \\
+ & $2.50\times10^{-3}$ & $2.601\times10^{-5}$ & $1.000$ & yes & \\
+ & $1.25\times10^{-3}$ & $1.301\times10^{-5}$ & $1.000$ & yes & $1.000$\\
+\addlinespace[0.25em]
+Trapezoidal / CN & $1.00\times10^{-3}$ & $1.470\times10^{-6}$ & -- & yes & \\
+ & $5.00\times10^{-4}$ & $7.825\times10^{-7}$ & $0.910$ & yes & \\
+ & $2.50\times10^{-4}$ & $1.949\times10^{-7}$ & $2.005$ & yes & \\
+ & $1.25\times10^{-4}$ & $4.864\times10^{-8}$ & $2.003$ & yes & $2.004$\\
+\bottomrule
+\end{tabular}
+\end{table}

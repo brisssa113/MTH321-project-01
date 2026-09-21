@@ -1,0 +1,11 @@
+quantity,value
+ee_real_axis_limit,2.0
+rk4_real_axis_limit,2.7852935634052933
+rk4_real_axis_minimum_R,0.2703947652051845
+rk4_real_axis_argmin,-1.5960716379833217
+ie_R_at_minus_1e8,9.9999999e-09
+cn_R_at_minus_1e8,-0.9999999600000008
+cn_max_abs_deviation_from_1_on_imaginary_axis,4.440892098500626e-16
+ie_max_abs_R_left_halfplane,1.0
+cn_max_abs_R_left_halfplane,1.0000000000000004
+ie_region_indicator_mismatches,0

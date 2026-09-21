@@ -1,0 +1,26 @@
+\begin{table}[H]
+\centering
+\caption{Cost at comparable accuracy (median of warmed runs, this machine). Times are implementation- and machine-dependent; the SciPy row is not JIT-compiled and its time is not like-for-like with the compiled kernels, so compare its work counts.}
+\label{tab:efficiency}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.245\linewidth} r r c r X@{}}
+\toprule
+Method & $h$ & $E_\infty$ & Min.\ $y_j$ & Time (ms) & Work\\
+\midrule
+\multicolumn{6}{@{}l}{\emph{(a) Target $E_\infty\le10^{-4}$: fastest tested run per method}}\\
+Explicit Euler & $5.00\times10^{-4}$ & $6.83\times10^{-6}$ & $\ge0$ & $32.1$ & 80000 steps; 80000 RHS evaluations\\
+Implicit Euler & $5.00\times10^{-3}$ & $5.20\times10^{-5}$ & $\ge0$ & $7.7$ & 8000 steps; 8014 Newton updates\\
+RK4 & $8.00\times10^{-4}$ & $1.17\times10^{-6}$ & $\ge0$ & $25.8$ & 50000 steps; 200000 RHS evaluations\\
+Trapezoidal / CN & $2.00\times10^{-3}$ & $2.81\times10^{-6}$ & $\ge0$ & $21.1$ & 20000 steps; 20015 Newton updates\\
+Trapezoidal / CN (non-physical) & $1.00\times10^{-2}$ & $9.41\times10^{-5}$ & $-2.9\times10^{-5}$ & $3.7$ & 4000 steps; 4102 Newton updates\\
+\midrule
+\multicolumn{6}{@{}l}{\emph{(b) Matched accuracy $E_\infty\approx7\times10^{-6}$}}\\
+Explicit Euler & $5.00\times10^{-4}$ & $6.83\times10^{-6}$ & $\ge0$ & $32.1$ & 80000 steps; 80000 RHS evaluations\\
+Implicit Euler & $6.50\times10^{-4}$ & $6.76\times10^{-6}$ & $\ge0$ & $62.9$ & 61539 steps; 61558 Newton updates\\
+\midrule
+\multicolumn{6}{@{}l}{\emph{(c) Library reference: adaptive implicit solver}}\\
+SciPy Radau, rtol$=10^{-6}$ & -- & $6.05\times10^{-8}$ & $\ge0$ & $12.5$ & 66 steps; 545 RHS evaluations; 14 Jacobians\\
+\bottomrule
+\end{tabularx}
+\end{table}

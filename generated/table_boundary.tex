@@ -1,0 +1,20 @@
+\begin{table}[H]
+\centering
+\caption{Explicit Euler near the predicted limit $h_{\mathrm{crit}}$. Admissible: reaches $T$ with $\min y_j\ge-10^{-12}$; negative: reaches $T$ but violates non-negativity; diverged: blow-up before $T$ (time at which $\max_j|y_j|$ first exceeds $2$). The invariant defect is evaluated only over steps with $\max_j|y_j|\le2$, because beyond that it measures round-off of huge numbers.}
+\label{tab:boundary}
+\small
+\begin{tabular}{rlrrr}
+\toprule
+$h$ & Status & Minimum $y_j$ & Invariant defect & Final-time error\\
+\midrule
+$4.00\times10^{-4}$ & admissible & $0$ & $1.07\times10^{-14}$ & $1.98\times10^{-6}$\\
+$5.00\times10^{-4}$ & admissible & $0$ & $1.24\times10^{-14}$ & $2.47\times10^{-6}$\\
+$5.50\times10^{-4}$ & admissible & $0$ & $2.62\times10^{-14}$ & $2.72\times10^{-6}$\\
+$5.90\times10^{-4}$ & admissible & $0$ & $1.07\times10^{-14}$ & $2.91\times10^{-6}$\\
+$5.95\times10^{-4}$ & admissible & $0$ & $1.20\times10^{-14}$ & $2.94\times10^{-6}$\\
+$6.00\times10^{-4}$ & negative values & $-4.84\times10^{-6}$ & $6.66\times10^{-15}$ & $4.48\times10^{-3}$\\
+$7.00\times10^{-4}$ & diverged ($t\approx27.1$) & -- & $6.66\times10^{-15}$ & --\\
+$8.00\times10^{-4}$ & diverged ($t\approx17.7$) & -- & $4.33\times10^{-15}$ & --\\
+\bottomrule
+\end{tabular}
+\end{table}

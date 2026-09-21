@@ -1,0 +1,7 @@
+quantity,value
+theoretical_h_critical,0.0005894856756856454
+max_fast_negative_real_eigenvalue,3392.7881244506075
+time_of_max_eigenvalue,40.0
+empirical_h_boundary_bisection,0.0005961988069890639
+time_local_bound_exceeded_at_h_emp,38.073893473368344
+rk4_h_critical_real_axis,0.0008209453291033377

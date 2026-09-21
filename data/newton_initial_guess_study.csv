@@ -1,0 +1,4 @@
+initial_guess,status,E_inf,final_reference_error,minimum_component,negative_count,total_newton_iterations,max_newton_iterations,max_newton_residual
+Euler predictor,completed,0.00010393132378803376,4.9383045867125566e-05,0.0,0,8012,8,9.422844937049396e-12
+Previous solution,completed,0.00010393132087206784,4.939779814252188e-05,0.0,0,8703,9,9.996964433838743e-11
+Perturbed predictor,completed_nonphysical,7.059257347053693,6.80084766675504,-4.093092231114613,7652,49319,16,9.354606022096701e-11
