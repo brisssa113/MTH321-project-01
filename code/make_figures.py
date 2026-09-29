@@ -149,7 +149,7 @@ def main(root: Path):
     kout = pd.read_csv(data / "kappa_output_grid.csv")
     fig, ax = plt.subplots(figsize=(7.4, 4.4))
     ax.loglog(js.t, js.kappa_V, lw=1.6, color="C1", label=r"$\kappa(V)$, 1000-point grid")
-    ax.loglog(kout.t, kout.kappa_V, ".", ms=4, color="k", label=r"201 output times")
+    ax.loglog(kout.t, kout.kappa_V, ".", ms=4, color="k", label=r"200 output times")
     ax.axhline(1.0, ls="--", color="0.4", lw=1.0, label=r"$\kappa(V)=1$ (normal matrix)")
     ax.axvline(t_c, ls=":", color="0.4", lw=1.2)
     ax.set_xlabel("Time (log scale)"); ax.set_ylabel(r"$\kappa(V(t))=\|V\|_2\|V^{-1}\|_2$")
