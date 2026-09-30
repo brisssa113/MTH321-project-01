@@ -9,18 +9,24 @@
 Method & $h$ & $E_\infty$ & Min.\ $y_j$ & Time (ms) & Work\\
 \midrule
 \multicolumn{6}{@{}l}{\emph{(a) Target $E_\infty\le10^{-4}$: fastest tested run per method}}\\
-Explicit Euler & $5.00\times10^{-4}$ & $6.83\times10^{-6}$ & $\ge0$ & $20.3$ & 80000 steps; 80000 RHS evaluations\\
+Explicit Euler & $5.00\times10^{-4}$ & $6.83\times10^{-6}$ & $\ge0$ & $19.9$ & 80000 steps; 80000 RHS evaluations\\
 Implicit Euler & $5.00\times10^{-3}$ & $5.20\times10^{-5}$ & $\ge0$ & $8.0$ & 8000 steps; 8014 Newton updates\\
-RK4 & $8.00\times10^{-4}$ & $1.17\times10^{-6}$ & $\ge0$ & $29.6$ & 50000 steps; 200000 RHS evaluations\\
-Trapezoidal / CN & $2.00\times10^{-3}$ & $2.81\times10^{-6}$ & $\ge0$ & $19.4$ & 20000 steps; 20015 Newton updates\\
-Trapezoidal / CN (non-physical) & $1.00\times10^{-2}$ & $9.41\times10^{-5}$ & $-2.9\times10^{-5}$ & $3.9$ & 4000 steps; 4102 Newton updates\\
+RK4 & $8.00\times10^{-4}$ & $1.17\times10^{-6}$ & $\ge0$ & $24.6$ & 50000 steps; 200000 RHS evaluations\\
+Trapezoidal / CN & $2.00\times10^{-3}$ & $2.81\times10^{-6}$ & $\ge0$ & $20.1$ & 20000 steps; 20015 Newton updates\\
+Trapezoidal / CN (non-physical) & $1.00\times10^{-2}$ & $9.41\times10^{-5}$ & $-2.9\times10^{-5}$ & $4.0$ & 4000 steps; 4102 Newton updates\\
 \midrule
 \multicolumn{6}{@{}l}{\emph{(b) Matched accuracy $E_\infty\approx7\times10^{-6}$}}\\
-Explicit Euler & $5.00\times10^{-4}$ & $6.83\times10^{-6}$ & $\ge0$ & $20.3$ & 80000 steps; 80000 RHS evaluations\\
-Implicit Euler & $6.50\times10^{-4}$ & $6.76\times10^{-6}$ & $\ge0$ & $63.2$ & 61539 steps; 61558 Newton updates\\
+Explicit Euler & $5.00\times10^{-4}$ & $6.83\times10^{-6}$ & $\ge0$ & $19.9$ & 80000 steps; 80000 RHS evaluations\\
+Implicit Euler & $6.50\times10^{-4}$ & $6.76\times10^{-6}$ & $\ge0$ & $64.6$ & 61539 steps; 61558 Newton updates\\
 \midrule
-\multicolumn{6}{@{}l}{\emph{(c) Library reference: adaptive implicit solver}}\\
-SciPy Radau, rtol$=10^{-6}$ & -- & $6.05\times10^{-8}$ & $\ge0$ & $13.5$ & 66 steps; 545 RHS evaluations; 14 Jacobians\\
+\multicolumn{6}{@{}l}{\emph{(c) Self-implemented adaptive Euler methods}}\\
+Adaptive IE, extrapolated, tol$=1\times10^{-4}$ & -- & $7.95\times10^{-5}$ & $\ge0$ & $0.8$ & 60 steps (0 rejected); 370 Newton updates\\
+Adaptive IE, first-order, tol$=1\times10^{-7}$ & -- & $6.19\times10^{-5}$ & $\ge0$ & $5.9$ & 1575 steps (2 rejected); 4800 Newton updates\\
+Adaptive IE, extrapolated, tol$=1\times10^{-5}$ (near-matched error) & -- & $8.73\times10^{-6}$ & $\ge0$ & $1.0$ & 164 steps (0 rejected); 994 Newton updates\\
+Adaptive EE, tol$=1\times10^{-7}$ & -- & $1.35\times10^{-5}$ & $\ge0$ & $12.5$ & 23202 steps (9194 rejected); 64792 RHS evaluations\\
+\midrule
+\multicolumn{6}{@{}l}{\emph{(d) Library reference: adaptive implicit solver}}\\
+SciPy Radau, rtol$=10^{-6}$ & -- & $6.05\times10^{-8}$ & $\ge0$ & $13.1$ & 66 steps; 545 RHS evaluations; 14 Jacobians\\
 \bottomrule
 \end{tabularx}
 \end{table}

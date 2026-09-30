@@ -101,6 +101,53 @@ def main(root: Path):
     fig.tight_layout()
     fig.savefig(figdir / "S3_adaptive_demo.png", dpi=250, bbox_inches="tight"); plt.close(fig)
 
+    # ---------------- Figure S3b: adaptive IMPLICIT Euler demonstration (tol = 1e-6, extrapolated variant), three panels
+    hist_i = pd.read_csv(data / "adaptive_implicit_demo_history.csv")
+    sum_i = pd.read_csv(data / "adaptive_implicit_demo_summary.csv").set_index("quantity")["value"]
+    fig, (a1, a2, a3) = plt.subplots(3, 1, figsize=(7.4, 9.0), sharex=True,
+                                     gridspec_kw={"height_ratios": [1.0, 1.25, 1.0]})
+    a1.loglog(hist_i.t, hist_i.y2_ref, "k-", lw=1.4, label="reference (Radau)")
+    a1.loglog(hist_i.t, hist_i.y2, ".", ms=3.5, color="C2", label="adaptive implicit Euler, accepted steps")
+    a1.set_ylabel(r"$y_2$"); a1.set_title(r"(a) Intermediate species $y_2$"); a1.legend(fontsize=8.5, loc="lower right")
+    a1.grid(True, which="both", alpha=.3)
+    a2.loglog(hist_i.t, hist_i.h, ".", ms=3.5, alpha=.7, color="C2", label=r"accepted step $h$")
+    a2.loglog(hist_i.t, 2.0 / hist_i.lam_max, "k--", lw=1.3, label=r"$2/|\lambda_{\max}(t)|$ (Explicit-Euler limit)")
+    a2.set_ylabel("step size"); a2.set_title("(b) Accepted step sizes against the explicit stability limit")
+    a2.legend(fontsize=8.2, loc="upper left"); a2.grid(True, which="both", alpha=.3)
+    a3.loglog(hist_i.t, hist_i.local_error_over_tol, ".", ms=3.5, alpha=.7, color="C2")
+    a3.axhline(1.0, ls="--", color="k", lw=1.2, label=r"tolerance ($e_n/\mathrm{tol}=1$)")
+    a3.set_ylim(1e-3, 3.0)
+    a3.set_xlabel("Time"); a3.set_ylabel(r"$e_n/\mathrm{tol}$")
+    a3.set_title("(c) Local error estimate of every accepted step"); a3.legend(fontsize=8.5, loc="lower right")
+    a3.grid(True, which="both", alpha=.3)
+    fig.tight_layout()
+    fig.savefig(figdir / "S3_adaptive_implicit_demo.png", dpi=250, bbox_inches="tight"); plt.close(fig)
+
+    # ---------------- Figure S3c: global error against tolerance, adaptive EE vs adaptive IE (two variants)
+    ad_ee = pd.read_csv(data / "adaptive_tolerance_refinement.csv")
+    ad_ee = ad_ee[ad_ee.status == "completed"].copy()
+    aie = pd.read_csv(data / "adaptive_implicit_tolerance_refinement.csv")
+    aie = aie[aie.status == "completed"]
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(10.4, 4.3))
+    tols = np.array([1e-8, 1e-4])
+    a1.loglog(ad_ee.tol, ad_ee.max_L2_error.astype(float), "o-", color="C0", lw=1.8, label="adaptive Explicit Euler")
+    for var, mk, col in [("first-order", "^", "C2"), ("extrapolated", "D", "C3")]:
+        d = aie[aie.variant == var].sort_values("tol")
+        a1.loglog(d.tol, d.E_inf, marker=mk, color=col, lw=1.8, label=f"adaptive implicit Euler ({var})")
+    a1.loglog(tols, tols, "k--", lw=1.1, label=r"$E_\infty=\mathrm{tol}$")
+    a1.set_xlabel("tolerance"); a1.set_ylabel(r"$E_\infty$"); a1.set_title(r"(a) Global error against tolerance")
+    a1.grid(True, which="both", alpha=.3); a1.legend(fontsize=8)
+    a2.loglog(ad_ee.max_L2_error.astype(float), ad_ee.accepted_steps + ad_ee.rejected_steps, "o-", color="C0", lw=1.8,
+              label="adaptive Explicit Euler")
+    for var, mk, col in [("first-order", "^", "C2"), ("extrapolated", "D", "C3")]:
+        d = aie[aie.variant == var].sort_values("tol")
+        a2.loglog(d.E_inf, d.accepted_steps + d.rejected_steps, marker=mk, color=col, lw=1.8,
+                  label=f"adaptive implicit Euler ({var})")
+    a2.set_xlabel(r"achieved $E_\infty$"); a2.set_ylabel("trial steps (accepted + rejected)")
+    a2.set_title("(b) Work against achieved error"); a2.grid(True, which="both", alpha=.3); a2.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(figdir / "S3_adaptive_tolerance_scaling.png", dpi=300, bbox_inches="tight"); plt.close(fig)
+
     # ---------------- Figure 9: work-precision (non-physical runs hollow)
     wp = pd.read_csv(data / "work_precision.csv")
     lib = pd.read_csv(data / "library_baseline.csv")
@@ -112,6 +159,13 @@ def main(root: Path):
         if len(bad):
             ax.loglog(bad.wall_clock_time * 1e3, bad.E_inf, marker=marker, ls="none", ms=9,
                       mfc="white", mec=COLOR[method], mew=1.8)
+    for var, mk, col in [("first-order", "v", "C4"), ("extrapolated", "P", "C5")]:
+        d = aie[aie.variant == var].sort_values("wall_clock_time")
+        ax.loglog(d.wall_clock_time * 1e3, d.E_inf, marker=mk, color=col, lw=1.8, ls="--",
+                  label=f"Adaptive implicit Euler ({var})")
+    ee_ad = pd.read_csv(data / "adaptive_explicit_work_precision.csv").sort_values("tol")
+    ax.loglog(ee_ad.wall_clock_time*1e3, ee_ad.E_inf, 'x--', color='C6', lw=1.5,
+              label="Adaptive Explicit Euler")
     ax.loglog([lib.wall_clock_time.iloc[0] * 1e3], [lib.E_inf.iloc[0]], marker="*", ms=13, ls="none",
               color="k", label="SciPy Radau (adaptive, library)")
     ax.plot([], [], marker="o", ls="none", mfc="white", mec="k", label="hollow: min $y<0$")

@@ -10,7 +10,7 @@ from scipy.integrate import solve_ivp
 
 from models import T0, TF, Y0, rhs, rhs_numba, jacobian
 from solvers import (warm_up, explicit_euler, rk4, implicit_euler, trapezoidal,
-                     implicit_euler_kernel, adaptive_euler_kernel)
+                     implicit_euler_kernel, adaptive_euler_kernel, adaptive_implicit_euler)
 from diagnostics import (e_inf, final_error, conservation_error,
                          conservation_error_admissible, divergence_time,
                          first_negative_time, min_component, is_nonnegative)
@@ -21,6 +21,8 @@ TIMING_REPEATS = 7              # median of this many warmed calls
 RK4_REAL_AXIS_LIMIT = 2.785293563405  # |z| bound of RK4's stability region on the negative real axis
 REACHED_TOL = 1.0e-8           # 'reached T': |t_end - T| below this (round-off accumulates over 6.4e5 steps)
 IMPLICIT = {"Implicit Euler", "Trapezoidal / CN"}
+AIE_TOLERANCES = [1e-4, 1e-5, 3e-6, 1e-6, 3e-7, 1e-7, 3e-8, 1e-8, 1e-9, 1e-10]   # first 8 = list of the adaptive-Euler study; 1e-9, 1e-10 locate the crossover with RK4 (do not go below ~1e-10: reference certifies ~2e-11)
+AIE_DEMO_TOL = 1e-6                                                # demonstration run (same as adaptive Euler)
 
 
 def common_output_grid():
@@ -435,6 +437,85 @@ def main(root: Path):
         {"quantity": "h_over_EE_limit_p95_t_gt_0.1", "value": float(np.quantile(r_stab, 0.95))},
     ])
 
+    # ------------------------------------------------------------------ adaptive implicit Euler (Sections 3.5, 5.5.2, 5.6)
+    print("[7b/8] Adaptive implicit Euler: tolerance study, timing and demonstration run...")
+    ee_timed = []
+    for r in a_rows:
+        if r['status'] != 'completed':
+            continue
+        (te, Ye, rejected, status), elapsed = timed_solver(
+            lambda: adaptive_euler_kernel(float(r['tol']), 1e-4, 1e-10, 1e-2))
+        ee_timed.append(dict(tol=r['tol'], E_inf=r['max_L2_error'], accepted_steps=len(te)-1,
+                             rejected_steps=int(rejected), rhs_evaluations=2*(len(te)-1+rejected),
+                             nonnegative=is_nonnegative(Ye), min_component=min_component(Ye),
+                             wall_clock_time=elapsed))
+    save_rows(data / "adaptive_explicit_work_precision.csv", list(ee_timed[0]), ee_timed)
+    aie_fields = ["variant", "tol", "status", "accepted_steps", "rejected_steps", "newton_updates", "E_inf", "E_over_tol",
+                  "final_y2_abs_error", "min_component", "nonnegative", "conservation_error", "median_accepted_h",
+                  "max_accepted_h", "h_over_EE_limit_p05", "h_over_EE_limit_median", "h_over_EE_limit_p95",
+                  "local_ratio_max", "wall_clock_time"]
+    aie_rows = []
+    y2_ref_T = float(tight.y[1, -1])
+    for variant, extrap in [("extrapolated", True), ("first-order", False)]:
+        for tol in AIE_TOLERANCES:
+            print(f"    adaptive IE ({variant}) tol={tol:.0e}")
+            try:
+                (t, Y, ratio, rejected, n_upd), elapsed = timed_solver(
+                    lambda: adaptive_implicit_euler(tol, extrap, newton_tol=NEWTON_TOL_FIXED))
+            except RuntimeError as exc:
+                aie_rows.append({"variant": variant, "tol": tol, "status": f"failed: {exc}"})
+                continue
+            hs, tm = np.diff(t), t[1:]
+            late = tm > 0.1
+            r_stab = hs[late] * lam_max_along(tight, tm[late]) / 2.0     # accepted h in units of the Explicit-Euler limit
+            E = e_inf(t, Y, tight)
+            aie_rows.append({
+                "variant": variant, "tol": tol, "status": "completed", "accepted_steps": len(hs),
+                "rejected_steps": rejected, "newton_updates": n_upd, "E_inf": E, "E_over_tol": E / tol,
+                "final_y2_abs_error": abs(float(Y[-1, 1]) - y2_ref_T), "min_component": min_component(Y),
+                "nonnegative": is_nonnegative(Y), "conservation_error": conservation_error(Y),
+                "median_accepted_h": float(np.median(hs)), "max_accepted_h": float(np.max(hs)),
+                "h_over_EE_limit_p05": float(np.quantile(r_stab, 0.05)),
+                "h_over_EE_limit_median": float(np.median(r_stab)),
+                "h_over_EE_limit_p95": float(np.quantile(r_stab, 0.95)),
+                "local_ratio_max": float(np.max(ratio)), "wall_clock_time": elapsed,
+            })
+    save_rows(data / "adaptive_implicit_tolerance_refinement.csv", aie_fields, aie_rows)
+
+    # ---- demonstration run (tol = AIE_DEMO_TOL, extrapolated variant): step history + summary
+    t_i, Y_i, ratio_i, rej_i, upd_i = adaptive_implicit_euler(AIE_DEMO_TOL, True, newton_tol=NEWTON_TOL_FIXED)
+    h_i, tm_i = np.diff(t_i), t_i[1:]
+    lam_i = lam_max_along(tight, tm_i)
+    y_ref_i = tight.sol(tm_i).T
+    err_glob_i = np.linalg.norm(Y_i[1:] - y_ref_i, axis=1)
+    save_rows(data / "adaptive_implicit_demo_history.csv",
+              ["t", "h", "local_error_over_tol", "y2", "y2_ref", "global_error_L2", "lam_max"],
+              [{"t": float(tm_i[i]), "h": float(h_i[i]), "local_error_over_tol": float(ratio_i[i]),
+                "y2": float(Y_i[i + 1, 1]), "y2_ref": float(y_ref_i[i, 1]),
+                "global_error_L2": float(err_glob_i[i]), "lam_max": float(lam_i[i])} for i in range(len(h_i))])
+    late_i = tm_i > 0.1
+    r_i = h_i[late_i] * lam_i[late_i] / 2.0
+    save_rows(data / "adaptive_implicit_demo_summary.csv", ["quantity", "value"], [
+        {"quantity": "tol", "value": AIE_DEMO_TOL}, {"quantity": "newton_tolerance", "value": NEWTON_TOL_FIXED},
+        {"quantity": "accepted_steps", "value": len(h_i)}, {"quantity": "rejected_steps", "value": int(rej_i)},
+        {"quantity": "newton_updates", "value": int(upd_i)},
+        {"quantity": "h_min", "value": float(h_i.min())}, {"quantity": "h_max", "value": float(h_i.max())},
+        {"quantity": "h_median", "value": float(np.median(h_i))},
+        {"quantity": "final_y1", "value": float(Y_i[-1, 0])}, {"quantity": "final_y2", "value": float(Y_i[-1, 1])},
+        {"quantity": "final_y3", "value": float(Y_i[-1, 2])},
+        {"quantity": "final_error_L2", "value": final_error(t_i, Y_i, tight)},
+        {"quantity": "E_inf", "value": e_inf(t_i, Y_i, tight)},
+        {"quantity": "conservation_defect", "value": conservation_error(Y_i)},
+        {"quantity": "min_component", "value": min_component(Y_i)},
+        {"quantity": "local_err_over_tol_p05", "value": float(np.quantile(ratio_i, 0.05))},
+        {"quantity": "local_err_over_tol_median", "value": float(np.median(ratio_i))},
+        {"quantity": "local_err_over_tol_p95", "value": float(np.quantile(ratio_i, 0.95))},
+        {"quantity": "local_err_over_tol_max", "value": float(ratio_i.max())},
+        {"quantity": "h_over_EE_limit_p05_t_gt_0.1", "value": float(np.quantile(r_i, 0.05))},
+        {"quantity": "h_over_EE_limit_median_t_gt_0.1", "value": float(np.median(r_i))},
+        {"quantity": "h_over_EE_limit_p95_t_gt_0.1", "value": float(np.quantile(r_i, 0.95))},
+    ])
+
     # ------------------------------------------------------------------ Jacobian / stiffness / non-normality (Section 4)
     print("[8/8] Reduced-Jacobian eigenvalues, stiffness ratio, kappa(V), h*lambda exceedance (Section 4)...")
     k2 = 3.0e7
@@ -483,7 +564,7 @@ def main(root: Path):
         {"quantity": "Jr_T_21", "value": float(Jr40[1, 0])}, {"quantity": "Jr_T_22", "value": float(Jr40[1, 1])},
     ])
 
-    # local hλ diagnostic versus the observed Explicit-Euler outcome of the step-size sweep
+    # local hlambda位 diagnostic versus the observed Explicit-Euler outcome of the step-size sweep
     t_div = {r["h"]: r["t_diverge"] for r in b_rows}
     status_of = {r["h"]: r["status"] for r in b_rows}
     hl_rows = []

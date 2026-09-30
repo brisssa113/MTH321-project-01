@@ -44,6 +44,129 @@ def write(path: Path, text: str):
     path.write_text(text, encoding="utf-8")
 
 
+# ---------------------------------------------------------------- adaptive implicit Euler (Sections 3.5, 5.5.2, 5.6)
+def adaptive_implicit_block(data: Path, wp, ad, ee_wp):
+    """Return (macro lines, LaTeX table, efficiency-table rows) for the adaptive implicit Euler study.
+
+    Reads data/adaptive_implicit_*.csv (written by experiments.py step [7b/8]). Returns empty pieces if they do not exist,
+    so the older pipeline keeps working."""
+    f_tol = data / "adaptive_implicit_tolerance_refinement.csv"
+    f_sum = data / "adaptive_implicit_demo_summary.csv"
+    if not (f_tol.exists() and f_sum.exists()):
+        return [], "", []
+    ai = pd.read_csv(f_tol)
+    ai = ai[ai.status == "completed"]
+    ext = ai[ai.variant == "extrapolated"].sort_values("tol", ascending=False)
+    fo = ai[ai.variant == "first-order"].sort_values("tol", ascending=False)
+    ds = dict(zip(*pd.read_csv(f_sum).T.values))
+    ee_ok = ad[ad.status == "completed"]
+    ee_demo = ee_ok[np.isclose(ee_ok.tol, ds["tol"], rtol=1e-9, atol=0.0)].iloc[0]
+
+    def ms(x):
+        return f"{1e3 * float(x):.1f}"
+
+    # ---- macros
+    L = [
+        macro("AITol", sci_plain(ds["tol"], 1)), macro("AINewtonTol", sci_plain(ds["newton_tolerance"], 1)),
+        macro("AIAcc", f"{int(ds['accepted_steps'])}"), macro("AIRej", f"{int(ds['rejected_steps'])}"),
+        macro("AIUpd", f"{int(ds['newton_updates']):,}".replace(",", "\\,")),
+        macro("AIHmin", sci_plain(ds["h_min"], 2)), macro("AIHmax", sci_plain(ds["h_max"], 2)),
+        macro("AIHmed", sci_plain(ds["h_median"], 2)),
+        macro("AIEinf", sci_plain(ds["E_inf"], 3)), macro("AIFinalErr", sci_plain(ds["final_error_L2"], 3)),
+        macro("AIEOverTol", f"{ds['E_inf'] / ds['tol']:.2f}"),
+        macro("AIDefect", sci_plain(ds["conservation_defect"], 2)),
+        macro("AIEtolLo", f"{ds['local_err_over_tol_p05']:.2f}"), macro("AIEtolMed", f"{ds['local_err_over_tol_median']:.2f}"),
+        macro("AIEtolHi", f"{ds['local_err_over_tol_p95']:.2f}"), macro("AIEtolMax", f"{ds['local_err_over_tol_max']:.2f}"),
+        macro("AIRatioLo", f"{ds['h_over_EE_limit_p05_t_gt_0.1']:.0f}"),
+        macro("AIRatioMed", f"{ds['h_over_EE_limit_median_t_gt_0.1']:.0f}"),
+        macro("AIRatioHi", f"{ds['h_over_EE_limit_p95_t_gt_0.1']:.0f}"),
+        macro("AIStepsFactor", f"{ee_demo.accepted_steps / ds['accepted_steps']:.0f}"),
+        macro("AIErrFactor", f"{float(ee_demo.max_L2_error) / ds['E_inf']:.0f}"),
+        macro("AIEOverTolMin", f"{ext.E_over_tol.min():.2f}"), macro("AIEOverTolMax", f"{ext.E_over_tol.max():.2f}"),
+        macro("AIFOOverTolMin", f"{fo.E_over_tol.min():.0f}"), macro("AIFOOverTolMax", f"{fo.E_over_tol.max():.0f}"),
+        macro("AIExtMinComp", sci_plain(ext.min_component.min(), 1) if ext.min_component.min() != 0 else "0"),
+        macro("AIExtDefectMax", sci_plain(ext.conservation_error.max(), 2)),
+        macro("AIEEsatLo", sci_plain(ee_ok.max_L2_error.astype(float).min(), 2)),
+        macro("AIEEsatHi", sci_plain(ee_ok[ee_ok.tol <= 1e-6].max_L2_error.astype(float).max(), 2)),
+        macro("AIExtSmallestE", sci_plain(ext.E_inf.min(), 2)),
+        macro("AIExtSmallestTol", sci_plain(ext.tol.min(), 1)),
+    ]
+
+    # ---- side-by-side table
+    body = []
+    for tol in sorted(set(ad.tol) | set(ext.tol), reverse=True):
+        re_all = ad[np.isclose(ad.tol, tol, rtol=1e-9, atol=0.0)]
+        rf = fo[np.isclose(fo.tol, tol, rtol=1e-9, atol=0.0)]
+        rx = ext[np.isclose(ext.tol, tol, rtol=1e-9, atol=0.0)]
+        if len(re_all) == 0:
+            ee_a, ee_e = "--", "not run"
+        else:
+            re = re_all.iloc[0]
+            ee_a = f"{int(re.accepted_steps)}" if re.status == "completed" else "--"
+            ee_e = sci_tex(re.max_L2_error, 2) if re.status == "completed" else "diverged"
+        c_f = (f"{int(rf.iloc[0].accepted_steps)} & {sci_tex(rf.iloc[0].E_inf, 2)}" if len(rf) else "-- & --")
+        c_x = (f"{int(rx.iloc[0].accepted_steps)} & {sci_tex(rx.iloc[0].E_inf, 2)} & ${rx.iloc[0].E_over_tol:.2f}$"
+               if len(rx) else "-- & -- & --")
+        body.append(f"{sci_tex(tol, 1)} & {ee_a} & {ee_e} & {c_f} & {c_x}\\\\")
+    table = (
+        "\\begin{table}[H]\n\\centering\n"
+        "\\caption{Adaptive step-doubling controllers on the same tolerances: Explicit Euler (Table~\\ref{tab:adaptive}), "
+        "implicit Euler keeping the two-half-step value (first order) and implicit Euler with local extrapolation "
+        "$2y_{\\rm two}-y_{\\rm full}$ (second order). ``Acc.'' counts accepted steps; all runs use $h_0=10^{-4}$ and the same "
+        "absolute max-norm test $\\|y_{\\rm two}-y_{\\rm full}\\|_\\infty\\le\\mathrm{tol}$; the implicit runs use "
+        "$h_{\\max}=5$ and a Newton tolerance of $10^{-13}$.}\n"
+        "\\label{tab:adaptive-implicit}\n\\small\n"
+        "\\resizebox{\\linewidth}{!}{\\begin{tabular}{r rr rr rrr}\n\\toprule\n"
+        " & \\multicolumn{2}{c}{Explicit Euler} & \\multicolumn{2}{c}{Implicit Euler, 1st order} & "
+        "\\multicolumn{3}{c}{Implicit Euler, extrapolated}\\\\\n"
+        "\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-8}\n"
+        "Tol. & Acc. & $E_\\infty$ & Acc. & $E_\\infty$ & Acc. & $E_\\infty$ & $E_\\infty/\\mathrm{tol}$\\\\\n\\midrule\n"
+        + "\n".join(body) + "\n\\bottomrule\n\\end{tabular}}\n\\end{table}\n")
+
+    # ---- efficiency-table rows: fastest run meeting the target, and the run closest to the matched accuracy of Explicit Euler
+    def row(r, label):
+        minc = "$\\ge0$" if r.min_component >= -POS_TOL else sci_tex(r.min_component, 2)
+        return (f"{label} & -- & {sci_tex(r.E_inf, 3)} & {minc} & ${ms(r.wall_clock_time)}$ & "
+                f"{int(r.accepted_steps)} steps ({int(r.rejected_steps)} rejected); {int(r.newton_updates)} Newton updates\\\\")
+    rows = ["\\midrule",
+            "\\multicolumn{6}{@{}l}{\\emph{(c) Self-implemented adaptive Euler methods}}\\\\"]
+    tgt = {}
+    for var in ["extrapolated", "first-order"]:
+        d = ai[(ai.variant == var) & (ai.E_inf <= 1e-4) & ai.nonnegative.astype(bool)]
+        if len(d):
+            r = d.loc[d.newton_updates.idxmin()]
+            tgt[var] = r
+            rows.append(row(r, f"Adaptive IE, {var}, tol$={sci_plain(r.tol, 1)}$"))
+    E_match = float(ee_wp.E_inf)
+    d = ai[(ai.variant == "extrapolated")].copy()
+    d["gap"] = np.abs(np.log(d.E_inf / E_match))
+    r = d.loc[d.gap.idxmin()]
+    match_ok = bool(r.gap < np.log(2.0))
+    if match_ok:
+        rows.append(row(r, f"Adaptive IE, extrapolated, tol$={sci_plain(r.tol, 1)}$ (near-matched error)"))
+    if "extrapolated" in tgt:
+        r0 = tgt["extrapolated"]
+        L += [macro("AITargetTol", sci_plain(r0.tol, 1)), macro("AITargetE", sci_plain(r0.E_inf, 2)),
+              macro("AITargetSteps", f"{int(r0.accepted_steps)}"), macro("AITargetUpd", f"{int(r0.newton_updates)}"),
+              macro("AITargetMs", ms(r0.wall_clock_time))]
+        fixed_ie = wp[(wp.method == "Implicit Euler") & (wp.E_inf <= 1e-4) & wp.nonnegative.astype(bool)]
+        if len(fixed_ie):
+            L.append(macro("AITargetVsIE", f"{float(fixed_ie.newton_updates.min()) / float(r0.newton_updates):.1f}"))
+    if match_ok:
+        L += [macro("AIMatchTol", sci_plain(r.tol, 1)), macro("AIMatchE", sci_plain(r.E_inf, 2)),
+              macro("AIMatchSteps", f"{int(r.accepted_steps)}"), macro("AIMatchUpd", f"{int(r.newton_updates)}"),
+              macro("AIMatchMs", ms(r.wall_clock_time)),
+              macro("AIMatchVsEE", f"{float(ee_wp.steps) / float(r.accepted_steps):.0f}")]
+    ae = pd.read_csv(data / "adaptive_explicit_work_precision.csv")
+    ae = ae[(ae.E_inf <= 1e-4) & ae.nonnegative.astype(bool)]
+    if len(ae):
+        r = ae.loc[ae.rhs_evaluations.idxmin()]
+        rows.append(f"Adaptive EE, tol$={sci_plain(r.tol, 1)}$ & -- & {sci_tex(r.E_inf)} & $\\ge0$ & "
+                    f"${ms(r.wall_clock_time)}$ & {int(r.accepted_steps)} steps ({int(r.rejected_steps)} rejected); "
+                    f"{int(r.rhs_evaluations)} RHS evaluations\\\\")
+    return L, table, rows
+
+
 def main(root: Path):
     data = root / "data"
     gen = root / "generated"
@@ -202,7 +325,11 @@ def main(root: Path):
         macro("KTf", sci_plain(qs["k1_times_t_fast"], 3)),
         macro("AdaptFailTime", f"{float(ad_fail.t_reached.iloc[0]):.2f}" if len(ad_fail) else "\\mathrm{n/a}"),
     ]
+    aie_lines, aie_table, aie_eff_rows = adaptive_implicit_block(data, wp, ad, ee_wp)
+    lines += aie_lines
     write(gen / "macros.tex", "".join(lines))
+    if aie_table:
+        write(gen / "table_adaptive_implicit.tex", aie_table)
 
     # ------------------------------------------------------------ Table: reference
     n_pts = int(v["dense_check_grid_points"])
@@ -342,8 +469,10 @@ Invariant defect $\max|y_1+y_2+y_3-1|$ & 201 output times & {sci_tex(v['referenc
         rowsE.append(line(cn_fast, "Trapezoidal / CN", " (non-physical)"))
     rowsE += ["\\midrule",
               "\\multicolumn{6}{@{}l}{\\emph{(b) Matched accuracy $E_\\infty\\approx7\\times10^{-6}$}}\\\\",
-              line(ee_row), line(ie_row), "\\midrule",
-              "\\multicolumn{6}{@{}l}{\\emph{(c) Library reference: adaptive implicit solver}}\\\\",
+              line(ee_row), line(ie_row)]
+    rowsE += aie_eff_rows
+    rowsE += ["\\midrule",
+              "\\multicolumn{6}{@{}l}{\\emph{(%s) Library reference: adaptive implicit solver}}\\\\" % ("d" if aie_eff_rows else "c"),
               (f"SciPy Radau, rtol$=10^{{-6}}$ & -- & {sci_tex(lib.E_inf, 3)} & $\\ge0$ & ${1e3 * lib.wall_clock_time:.1f}$ & "
                f"{int(lib.steps)} steps; {int(lib.nfev)} RHS evaluations; {int(lib.njev)} Jacobians\\\\")]
     eff_table = (
