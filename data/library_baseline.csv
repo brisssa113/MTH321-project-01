@@ -1,2 +1,2 @@
 method,rtol,atol,E_inf,steps,nfev,njev,nlu,wall_clock_time,min_component
-SciPy Radau (adaptive),1e-06,1e-09,6.045053543213804e-08,66,545,14,90,0.013145199976861477,0.0
+SciPy Radau (adaptive),1e-06,1e-09,6.045053543213804e-08,66,545,14,90,0.02083880000282079,0.0

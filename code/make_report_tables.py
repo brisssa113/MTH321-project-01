@@ -151,12 +151,14 @@ def adaptive_implicit_block(data: Path, wp, ad, ee_wp):
               macro("AITargetMs", ms(r0.wall_clock_time))]
         fixed_ie = wp[(wp.method == "Implicit Euler") & (wp.E_inf <= 1e-4) & wp.nonnegative.astype(bool)]
         if len(fixed_ie):
-            L.append(macro("AITargetVsIE", f"{float(fixed_ie.newton_updates.min()) / float(r0.newton_updates):.1f}"))
+            best_ie = fixed_ie.loc[fixed_ie.newton_updates.idxmin()]
+            L.append(macro("AITargetUpdVsIE", f"{float(best_ie.newton_updates) / float(r0.newton_updates):.1f}"))
+            L.append(macro("AITargetTimeVsIE", f"{float(best_ie.wall_clock_time) / float(r0.wall_clock_time):.1f}"))
     if match_ok:
         L += [macro("AIMatchTol", sci_plain(r.tol, 1)), macro("AIMatchE", sci_plain(r.E_inf, 2)),
               macro("AIMatchSteps", f"{int(r.accepted_steps)}"), macro("AIMatchUpd", f"{int(r.newton_updates)}"),
               macro("AIMatchMs", ms(r.wall_clock_time)),
-              macro("AIMatchVsEE", f"{float(ee_wp.steps) / float(r.accepted_steps):.0f}")]
+              macro("AIMatchStepsVsEE", f"{float(ee_wp.steps) / float(r.accepted_steps):.0f}")]
     ae = pd.read_csv(data / "adaptive_explicit_work_precision.csv")
     ae = ae[(ae.E_inf <= 1e-4) & ae.nonnegative.astype(bool)]
     if len(ae):
@@ -164,7 +166,132 @@ def adaptive_implicit_block(data: Path, wp, ad, ee_wp):
         rows.append(f"Adaptive EE, tol$={sci_plain(r.tol, 1)}$ & -- & {sci_tex(r.E_inf)} & $\\ge0$ & "
                     f"${ms(r.wall_clock_time)}$ & {int(r.accepted_steps)} steps ({int(r.rejected_steps)} rejected); "
                     f"{int(r.rhs_evaluations)} RHS evaluations\\\\")
+    L += newton_rule_check(ext)
     return L, table, rows
+
+
+# ---------------------------------------------------------------- Newton-tolerance rule check for adaptive IE (Section 5.5)
+def newton_rule_check(ext: "pd.DataFrame", newton_tol_fixed: float = 1e-13):
+    """Macro lines reporting, for the two finest extrapolated-IE tolerances, how far the
+    fixed Newton tolerance of this study (tau_N) departs from the rule tau_N <~ E_target/N_steps
+    derived in Section 5.5.1 (N taken as the accepted-step count, as there)."""
+    L = []
+    for tol_target, tag in [(1e-9, "9"), (1e-10, "10")]:
+        d = ext[np.isclose(ext.tol, tol_target, rtol=1e-6, atol=0.0)]
+        if not len(d):
+            continue
+        r = d.iloc[0]
+        N = float(r.accepted_steps)
+        ratio = (N * newton_tol_fixed) / float(r.E_inf)
+        L.append(macro(f"NewtonRuleRatio{tag}", f"{ratio:.1f}"))
+    return L
+
+
+# ---------------------------------------------------------------- RK4/CN vs. extrapolated adaptive IE (Section 5.6)
+def rk_cn_vs_extrapolated_ie(wp: "pd.DataFrame", ai: "pd.DataFrame"):
+    """Compare RK4 and CN fixed-step runs with the extrapolated adaptive-IE run
+    that would reach the SAME achieved error, found by log-log interpolation of
+    (E_inf, wall_clock_time) over the extrapolated tolerance sweep.
+
+    Returns (macro lines, LaTeX table). Both are empty if the extrapolated-IE
+    sweep is not available, so the older pipeline keeps working."""
+    ext = ai[ai.variant == "extrapolated"].sort_values("E_inf")
+    if len(ext) < 2:
+        return [], ""
+    logE = np.log(ext.E_inf.values)
+    logT = np.log(ext.wall_clock_time.values)
+    order = np.argsort(logE)
+    logE, logT = logE[order], logT[order]
+    e_lo, e_hi = ext.E_inf.min(), ext.E_inf.max()
+
+    targets = [("RK4", 8e-4), ("RK4", 4e-4), ("RK4", 2e-4), ("RK4", 1e-4),
+               ("Trapezoidal / CN", 1.25e-4), ("Trapezoidal / CN", 1e-3)]
+    rows, ratios = [], []
+    for method, h in targets:
+        d = wp[(wp.method == method) & np.isclose(wp.h, h)]
+        if not len(d):
+            continue
+        r = d.iloc[0]
+        E, t_ms = float(r.E_inf), float(r.wall_clock_time) * 1e3
+        in_range = e_lo <= E <= e_hi
+        if in_range:
+            ie_ms = float(np.exp(np.interp(np.log(E), logE, logT))) * 1e3
+            ratio = t_ms / ie_ms
+            ratios.append(ratio)
+        else:
+            ie_ms, ratio = None, None
+        rows.append((method, h, E, t_ms, ie_ms, ratio, in_range))
+
+    lines = [
+        "\\begin{table}[H]\n\\centering\n",
+        "\\caption{Fixed-step RK4 and Trapezoidal/CN against the extrapolated adaptive-IE run "
+        "reaching the same achieved error $E_\\infty$, found by log-log interpolation of the "
+        "extrapolated-IE tolerance sweep (Table~\\ref{tab:adaptive-implicit}). ``IE time (interp.)'' "
+        "is the interpolated, not measured, wall-clock time; ``ratio'' is fixed-step time divided by it.}\n",
+        "\\label{tab:rk-cn-vs-ie}\n\\small\n",
+        "\\begin{tabular}{l r r r r r}\n\\toprule\n",
+        "Method & $h$ & $E_\\infty$ & time (ms) & IE time, interp.\\ (ms) & ratio \\\\\n\\midrule\n",
+    ]
+    for method, h, E, t_ms, ie_ms, ratio, in_range in rows:
+        if in_range:
+            lines.append(f"{method} & {sci_plain(h, 1)} & {sci_tex(E, 2)} & {t_ms:.1f} & {ie_ms:.2f} & {ratio:.1f}$\\times$\\\\\n")
+        else:
+            lines.append(f"{method} & {sci_plain(h, 1)} & {sci_tex(E, 2)} & {t_ms:.1f} & -- & outside sweep range\\\\\n")
+    lines += ["\\bottomrule\n\\end{tabular}\n\\end{table}\n"]
+    table = "".join(lines)
+
+    macros = []
+    if ratios:
+        macros.append(macro("RKvsIEMinRatio", f"{min(ratios):.1f}"))
+        macros.append(macro("RKvsIEMaxRatio", f"{max(ratios):.1f}"))
+    return macros, table
+
+
+
+def adaptive_ie_stability_macros(sr):
+    """Macros for the stability functions of the two accepted states of the step-doubling IE controller.
+    Reads the extra keys written by stability_region.py; returns [] for older data files."""
+    if "ext_R_zero_crossing" not in sr:
+        return []
+    f = lambda k: float(sr[k])
+    return [
+        macro("ExtMaxLHP", f"{f('ext_max_abs_R_left_halfplane'):.6f}"),
+        macro("IETwoMaxLHP", f"{f('ie2_max_abs_R_left_halfplane'):.6f}"),
+        macro("ExtCFDev", sci_plain(f("ext_closed_form_max_deviation"), 1)),
+        macro("ExtIdErr", sci_plain(f("ext_imag_axis_identity_max_error"), 1)),
+        macro("ExtZero", f"{abs(f('ext_R_zero_crossing')):.3f}"),
+        macro("ExtMinR", f"{abs(f('ext_R_negative_minimum')):.4f}"),
+        macro("ExtMinAt", f"{abs(f('ext_R_negative_minimum_at')):.2f}"),
+        macro("ExtRhpEnd", f"{f('ext_rhp_real_axis_end'):.3f}"),
+        macro("ExtMinus", sci_plain(f("ext_R_at_minus_1e8"), 2)),
+        macro("ExtErrConst", f"{f('ext_error_constant_over_z3'):.3f}"),
+        macro("IETwoErrConst", f"{f('ie2_error_constant_over_z2'):.3f}"),
+        macro("EstAmpMax", f"{f('est_ie_max_amplification'):.4f}"),
+        macro("EstAmpAt", f"{abs(f('est_ie_max_amplification_at')):.3f}"),
+    ]
+ 
+ 
+def fast_mode_table(df):
+    """Growth factors and estimator amplification at z = h*lambda_fast."""
+    rows = []
+    for _, r in df.iterrows():
+        lab = (f"fixed $h={sci_plain(r.h, 1)}$" if r.kind == "fixed"
+               else f"adaptive IE, median $h={r.h:.3f}$ ($t>0.1$)")
+        rows.append(f"{lab} & ${r.z:.1f}$ & ${r.R_CN:+.3f}$ & ${r.R_IE:+.3f}$ & ${r.R_EXT:+.4f}$ & "
+                    f"${r.est_IE:.3f}$ & {sci_tex(r.est_EE, 2)}\\\\")
+    return (
+        "\\begin{table}[H]\n\\centering\n"
+        "\\caption{Growth factors and step-doubling-estimator amplification at $z=h\\lambda_{\\rm fast}$ with "
+        "$\\lambda_{\\rm fast}=-2.19\\times10^{3}$. $R_{\\rm CN}$, $R_{\\rm IE}$ and $R_{\\rm ext}$ are the growth factors of "
+        "Trapezoidal/CN, Implicit Euler and the locally extrapolated state $2y_{\\rm two}-y_{\\rm full}$; "
+        "``est.\\ IE'' and ``est.\\ EE'' are $|R_{\\rm two}-R_{\\rm full}|$ for Implicit and Explicit Euler, i.e.\\ how much of "
+        "a fast-mode amplitude of $1$ enters the error estimate $e_n$. The last row uses the median accepted macro-step of the "
+        "demonstration run of Section~\\ref{sec:adaptive-method}.}\n"
+        "\\label{tab:R-fast-mode}\n\\small\n"
+        "\\resizebox{\\linewidth}{!}{\\begin{tabular}{l r r r r r r}\n\\toprule\n"
+        "Step & $z$ & $R_{\\rm CN}$ & $R_{\\rm IE}$ & $R_{\\rm ext}$ & est.\\ IE & est.\\ EE\\\\\n\\midrule\n"
+        + "\n".join(rows) + "\n\\bottomrule\n\\end{tabular}}\n\\end{table}\n")
+
 
 
 def main(root: Path):
@@ -327,9 +454,24 @@ def main(root: Path):
     ]
     aie_lines, aie_table, aie_eff_rows = adaptive_implicit_block(data, wp, ad, ee_wp)
     lines += aie_lines
+
+    lines += adaptive_ie_stability_macros(sr)
+
+    f_ai = data / "adaptive_implicit_tolerance_refinement.csv"
+    if f_ai.exists():
+        ai_ok = pd.read_csv(f_ai)
+        ai_ok = ai_ok[ai_ok.status == "completed"]
+        rc_macros, rc_table = rk_cn_vs_extrapolated_ie(wp, ai_ok)
+        lines += rc_macros
+        if rc_table:
+            write(gen / "table_rk_cn_vs_ie.tex", rc_table)
     write(gen / "macros.tex", "".join(lines))
     if aie_table:
         write(gen / "table_adaptive_implicit.tex", aie_table)
+
+    f_fm = data / "stability_R_fast_mode.csv"
+    if f_fm.exists():
+        write(gen / "table_R_fast_mode.tex", fast_mode_table(pd.read_csv(f_fm)))       
 
     # ------------------------------------------------------------ Table: reference
     n_pts = int(v["dense_check_grid_points"])

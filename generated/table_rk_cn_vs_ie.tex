@@ -1,0 +1,18 @@
+\begin{table}[H]
+\centering
+\caption{Fixed-step RK4 and Trapezoidal/CN against the extrapolated adaptive-IE run reaching the same achieved error $E_\infty$, found by log-log interpolation of the extrapolated-IE tolerance sweep (Table~\ref{tab:adaptive-implicit}). ``IE time (interp.)'' is the interpolated, not measured, wall-clock time; ``ratio'' is fixed-step time divided by it.}
+\label{tab:rk-cn-vs-ie}
+\small
+\begin{tabular}{l r r r r r}
+\toprule
+Method & $h$ & $E_\infty$ & time (ms) & IE time, interp.\ (ms) & ratio \\
+\midrule
+RK4 & 8\times10^{-4} & $1.2\times10^{-6}$ & 31.8 & 6.69 & 4.7$\times$\\
+RK4 & 4\times10^{-4} & $4.4\times10^{-8}$ & 70.9 & 16.37 & 4.3$\times$\\
+RK4 & 2\times10^{-4} & $2.2\times10^{-9}$ & 138.8 & 54.34 & 2.6$\times$\\
+RK4 & 1\times10^{-4} & $1.2\times10^{-10}$ & 240.3 & 286.34 & 0.8$\times$\\
+Trapezoidal / CN & 1\times10^{-4} & $4.9\times10^{-8}$ & 332.9 & 14.82 & 22.5$\times$\\
+Trapezoidal / CN & 1\times10^{-3} & $1.5\times10^{-6}$ & 40.2 & 6.56 & 6.1$\times$\\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering
+\caption{Growth factors and step-doubling-estimator amplification at $z=h\lambda_{\rm fast}$ with $\lambda_{\rm fast}=-2.19\times10^{3}$. $R_{\rm CN}$, $R_{\rm IE}$ and $R_{\rm ext}$ are the growth factors of Trapezoidal/CN, Implicit Euler and the locally extrapolated state $2y_{\rm two}-y_{\rm full}$; ``est.\ IE'' and ``est.\ EE'' are $|R_{\rm two}-R_{\rm full}|$ for Implicit and Explicit Euler, i.e.\ how much of a fast-mode amplitude of $1$ enters the error estimate $e_n$. The last row uses the median accepted macro-step of the demonstration run of Section~\ref{sec:adaptive-method}.}
+\label{tab:R-fast-mode}
+\small
+\resizebox{\linewidth}{!}{\begin{tabular}{l r r r r r r}
+\toprule
+Step & $z$ & $R_{\rm CN}$ & $R_{\rm IE}$ & $R_{\rm ext}$ & est.\ IE & est.\ EE\\
+\midrule
+fixed $h=1\times10^{-3}$ & $-2.2$ & $-0.045$ & $+0.313$ & $+0.1422$ & $0.086$ & $1.2\times10^{0}$\\
+fixed $h=2\times10^{-3}$ & $-4.4$ & $-0.373$ & $+0.186$ & $+0.0107$ & $0.088$ & $4.8\times10^{0}$\\
+fixed $h=5\times10^{-3}$ & $-10.9$ & $-0.691$ & $+0.084$ & $-0.0360$ & $0.060$ & $3.0\times10^{1}$\\
+fixed $h=1\times10^{-2}$ & $-21.9$ & $-0.833$ & $+0.044$ & $-0.0297$ & $0.037$ & $1.2\times10^{2}$\\
+adaptive IE, median $h=0.060$ ($t>0.1$) & $-148.6$ & $-0.973$ & $+0.007$ & $-0.0063$ & $0.007$ & $5.5\times10^{3}$\\
+\bottomrule
+\end{tabular}}
+\end{table}
